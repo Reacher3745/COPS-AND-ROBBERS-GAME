@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Damage Number — Cops & Robbers</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@400;500&family=Lora:ital,wght@0,400;1,400&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --cop:#0F6E56;--cop-bg:#E1F5EE;--cop-mid:#1D9E75;
+  --robber:#993C1D;--robber-bg:#FAECE7;--robber-mid:#D85A30;
+  --damaged:#854F0B;--damaged-bg:#FAEEDA;--damaged-mid:#EF9F27;
+  --bg:#0e0e0d;--surface:#1a1a18;--surface2:#242422;
+  --text:#f0ede6;--text2:#a09d95;--accent:#EF9F27;
+}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden}
+.screen{display:none;min-height:100vh;flex-direction:column}
+.screen.active{display:flex}
+
+/* TITLE */
+#screen-title{align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden}
+#screen-title::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 50% at 50% 60%,#1a2e28 0%,transparent 70%);pointer-events:none}
+.grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(239,159,39,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(239,159,39,.05) 1px,transparent 1px);background-size:48px 48px;animation:gridScroll 20s linear infinite}
+@keyframes gridScroll{to{background-position:48px 48px}}
+.title-content{position:relative;text-align:center;padding:2rem}
+.title-eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.2em;color:var(--accent);text-transform:uppercase;margin-bottom:1.5rem;opacity:0;animation:fadeUp .6s .2s forwards}
+h1.game-title{font-family:'Syne',sans-serif;font-size:clamp(3rem,8vw,7rem);font-weight:800;line-height:.95;letter-spacing:-.03em;margin-bottom:.5rem;opacity:0;animation:fadeUp .6s .4s forwards}
+h1.game-title span{color:var(--accent)}
+.title-sub{font-family:'Lora',serif;font-style:italic;font-size:1.1rem;color:var(--text2);margin-bottom:3rem;opacity:0;animation:fadeUp .6s .6s forwards}
+.btn-group{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;opacity:0;animation:fadeUp .6s .8s forwards}
+.btn{font-family:'Syne',sans-serif;font-weight:700;font-size:.85rem;letter-spacing:.05em;text-transform:uppercase;padding:.75rem 2rem;border:1.5px solid;cursor:pointer;transition:all .2s;border-radius:2px;background:transparent}
+.btn-primary{border-color:var(--accent);color:var(--accent)}
+.btn-primary:hover{background:var(--accent);color:#000}
+.btn-secondary{border-color:var(--text2);color:var(--text2)}
+.btn-secondary:hover{border-color:var(--text);color:var(--text)}
+.btn:active{transform:scale(.97)}
+.theory-note{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);letter-spacing:.1em;opacity:0;animation:fadeUp .6s 1s forwards;white-space:nowrap}
+
+/* SETUP */
+#screen-setup{background:var(--bg);padding:2rem}
+.setup-header{text-align:center;margin-bottom:2.5rem;border-bottom:1px solid var(--surface2);padding-bottom:1.5rem}
+.setup-header h2{font-size:1.8rem;font-weight:800;letter-spacing:-.02em}
+.setup-header p{color:var(--text2);font-family:'Lora',serif;font-style:italic;font-size:.95rem;margin-top:.4rem}
+.setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:2rem;max-width:900px;margin:0 auto}
+@media(max-width:700px){.setup-grid{grid-template-columns:1fr}}
+.setup-section h3{font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-family:'JetBrains Mono',monospace;margin-bottom:1rem}
+.option-cards{display:flex;flex-direction:column;gap:.6rem}
+.option-card{border:1.5px solid var(--surface2);padding:1rem 1.2rem;cursor:pointer;transition:all .18s;border-radius:2px;display:flex;align-items:center;gap:1rem;background:var(--surface)}
+.option-card:hover{border-color:var(--text2)}
+.option-card.selected{border-color:var(--accent);background:#1e1c14}
+.option-card .oc-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
+.oc-cop .oc-icon{background:var(--cop-bg);color:var(--cop)}
+.oc-robber .oc-icon{background:var(--robber-bg);color:var(--robber)}
+.option-card .oc-text strong{display:block;font-size:.9rem;font-weight:700}
+.option-card .oc-text span{display:block;font-size:.75rem;color:var(--text2);font-family:'Lora',serif;font-style:italic;margin-top:.15rem}
+.map-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.map-card{border:1.5px solid var(--surface2);padding:.8rem 1rem;cursor:pointer;transition:all .18s;border-radius:2px;background:var(--surface)}
+.map-card:hover{border-color:var(--text2)}
+.map-card.selected{border-color:var(--accent);background:#1e1c14}
+.map-card strong{display:block;font-size:.85rem;font-weight:700}
+.map-card span{display:block;font-size:.7rem;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:.2rem}
+.setup-footer{max-width:900px;margin:2rem auto 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem}
+.setup-footer .setup-info{font-size:.8rem;color:var(--text2);font-family:'JetBrains Mono',monospace}
+
+/* GAME */
+#screen-game{flex-direction:row;background:var(--bg);min-height:100vh}
+.game-sidebar{width:260px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--surface2);display:flex;flex-direction:column;padding:1.2rem;gap:1.2rem}
+.game-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;min-height:100vh}
+.sidebar-title{font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-family:'JetBrains Mono',monospace}
+.sidebar-map-name{font-size:1.1rem;font-weight:800;letter-spacing:-.01em}
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--surface2)}
+.stat-row:last-child{border-bottom:none}
+.stat-label{font-size:.7rem;color:var(--text2);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em}
+.stat-val{font-size:1rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.stat-val.cop-color{color:var(--cop-mid)}
+.stat-val.robber-color{color:var(--robber-mid)}
+.stat-val.damaged-color{color:var(--damaged-mid)}
+.turn-indicator{padding:.75rem 1rem;border-radius:2px;font-size:.8rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;text-align:center;transition:all .3s}
+.turn-cop{background:var(--cop-bg);color:var(--cop)}
+.turn-robber{background:var(--robber-bg);color:var(--robber)}
+.phase-label{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--text2);letter-spacing:.1em;text-transform:uppercase;padding:.4rem .8rem;border:1px solid var(--surface2);border-radius:2px;text-align:center}
+.log-box{flex:1;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--text2);line-height:1.8;border:1px solid var(--surface2);border-radius:2px;padding:.6rem;max-height:220px}
+.log-box::-webkit-scrollbar{width:3px}
+.log-box::-webkit-scrollbar-thumb{background:var(--surface2)}
+.log-entry-cop{color:var(--cop-mid)}
+.log-entry-robber{color:var(--robber-mid)}
+.log-entry-damaged{color:var(--damaged-mid)}
+.log-entry-system{color:#666660}
+.sidebar-btns{display:flex;flex-direction:column;gap:.5rem}
+.sidebar-btns .btn{font-size:.7rem;padding:.55rem 1rem;width:100%;text-align:center}
+#game-canvas{width:100%;max-width:680px;background:var(--surface);border:1px solid var(--surface2);border-radius:4px;user-select:none}
+#game-canvas svg{display:block;width:100%;height:auto}
+.move-hint{font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--accent);text-align:center;padding:.5rem;min-height:2rem}
+
+/* RESULT */
+.result-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);align-items:center;justify-content:center;z-index:100}
+.result-overlay.show{display:flex}
+.result-card{background:var(--surface);border:1.5px solid var(--surface2);border-radius:4px;padding:3rem;text-align:center;max-width:440px;width:90%}
+.result-icon{font-size:3rem;margin-bottom:1rem}
+.result-title{font-size:2rem;font-weight:800;letter-spacing:-.02em;margin-bottom:.5rem}
+.result-sub{color:var(--text2);font-family:'Lora',serif;font-style:italic;font-size:1rem;margin-bottom:1.5rem}
+.result-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:2rem}
+.rs{background:var(--surface2);padding:.8rem;border-radius:2px}
+.rs strong{display:block;font-size:1.4rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+.rs span{font-size:.65rem;color:var(--text2);text-transform:uppercase;letter-spacing:.08em}
+.result-btns{display:flex;gap:1rem;justify-content:center}
+.info-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);align-items:center;justify-content:center;z-index:100}
+.info-overlay.show{display:flex}
+.info-card{background:var(--surface);border:1.5px solid var(--surface2);border-radius:4px;padding:2.5rem;max-width:560px;width:90%;max-height:90vh;overflow-y:auto}
+.info-card h2{font-size:1.5rem;font-weight:800;margin-bottom:1.5rem;letter-spacing:-.02em}
+.info-card h3{font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);font-family:'JetBrains Mono',monospace;margin:1.2rem 0 .5rem}
+.info-card p,.info-card li{font-size:.85rem;color:var(--text2);line-height:1.7;margin-bottom:.4rem}
+.info-card ul{padding-left:1.2rem}
+.info-card .close-btn{margin-top:1.5rem}
+
+/* AI thinking spinner */
+.thinking-bar{height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:.4rem}
+.thinking-fill{height:100%;background:var(--accent);border-radius:2px;animation:thinkingAnim 1s ease-in-out infinite}
+@keyframes thinkingAnim{0%{width:0%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0%;margin-left:100%}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.pulsing{animation:pulse 1.2s ease-in-out infinite}
+@media(max-width:750px){#screen-game{flex-direction:column}.game-sidebar{width:100%;flex-direction:row;flex-wrap:wrap;gap:.8rem;padding:1rem;border-right:none;border-bottom:1px solid var(--surface2)}.game-sidebar .log-box{display:none}}
+</style>
+</head>
+<body>
+
+<!-- TITLE -->
+<div id="screen-title" class="screen active">
+  <div class="grid-bg"></div>
+  <div class="title-content">
+    <div class="title-eyebrow">Australasian Journal of Combinatorics · Graph Theory</div>
+    <h1 class="game-title">DAMAGE<br><span>NUMBER</span></h1>
+    <p class="title-sub">Cops &amp; Robbers on Graphs — a pursuit-evasion game</p>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="showScreen('setup')">Play Game</button>
+      <button class="btn btn-secondary" onclick="showInfo()">How to Play</button>
+    </div>
+  </div>
+  <p class="theory-note">Based on Cox &amp; Sanaei (2019) · Huggan, Messinger &amp; Porter (2024)</p>
+</div>
+
+<!-- SETUP -->
+<div id="screen-setup" class="screen">
+  <div class="setup-header">
+    <h2>Game Setup</h2>
+    <p>Choose your mode, role, and map</p>
+  </div>
+  <div class="setup-grid">
+    <div>
+      <div class="setup-section">
+        <h3>Number of Players</h3>
+        <div class="option-cards">
+          <div class="option-card selected" data-group="players" data-val="1" onclick="selectOption(this)">
+            <div class="oc-icon" style="background:var(--surface2);font-size:.9rem">1P</div>
+            <div class="oc-text"><strong>1 Player</strong><span>You vs. optimal AI</span></div>
+          </div>
+          <div class="option-card" data-group="players" data-val="2" onclick="selectOption(this)">
+            <div class="oc-icon" style="background:var(--surface2);font-size:.9rem">2P</div>
+            <div class="oc-text"><strong>2 Players</strong><span>Pass the device — Cop vs Robber</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="setup-section" id="role-section" style="margin-top:1.5rem">
+        <h3>Your Role <span id="role-note" style="color:var(--text2);font-size:.65rem">(1P only)</span></h3>
+        <div class="option-cards">
+          <div class="option-card oc-cop selected" data-group="role" data-val="cop" onclick="selectOption(this)">
+            <div class="oc-icon">🚔</div>
+            <div class="oc-text"><strong>Play as Cop</strong><span>Minimize damage, capture the robber</span></div>
+          </div>
+          <div class="option-card oc-robber" data-group="role" data-val="robber" onclick="selectOption(this)">
+            <div class="oc-icon">🦹</div>
+            <div class="oc-text"><strong>Play as Robber</strong><span>Maximize damage, avoid capture</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="setup-section">
+      <h3>Choose Map</h3>
+      <div class="map-grid" id="map-options">
+        <div class="map-card selected" data-group="map" data-val="P6" onclick="selectOption(this)">
+          <strong>Path P₆</strong><span>6 nodes · dmg = 2</span>
+        </div>
+        <div class="map-card" data-group="map" data-val="C6" onclick="selectOption(this)">
+          <strong>Cycle C₆</strong><span>6 nodes · dmg = 2</span>
+        </div>
+        <div class="map-card" data-group="map" data-val="C8" onclick="selectOption(this)">
+          <strong>Cycle C₈</strong><span>8 nodes · dmg = 3</span>
+        </div>
+        <div class="map-card" data-group="map" data-val="Petersen" onclick="selectOption(this)">
+          <strong>Petersen Graph</strong><span>10 nodes · dmg = 5</span>
+        </div>
+        <div class="map-card" data-group="map" data-val="K33" onclick="selectOption(this)">
+          <strong>Bipartite K₃,₃</strong><span>6 nodes · dmg ≤ 1</span>
+        </div>
+        <div class="map-card" data-group="map" data-val="M8" onclick="selectOption(this)">
+          <strong>Möbius M₈</strong><span>8 nodes · dmg = 4</span>
+        </div>
+        <div class="map-card" data-group="map" data-val="Grid" onclick="selectOption(this)">
+          <strong>Grid 3×3</strong><span>9 nodes · dmg = 4</span>
+        </div>
+        <div class="map-card" data-group="map" data-val="Pappus" onclick="selectOption(this)">
+          <strong>Pappus Graph</strong><span>18 nodes · dmg ≥ 10</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="setup-footer">
+    <div class="setup-info" id="setup-info-text">Map: Path P₆ — Known dmg(G) = 2</div>
+    <div style="display:flex;gap:.8rem">
+      <button class="btn btn-secondary" onclick="showScreen('title')">Back</button>
+      <button class="btn btn-primary" onclick="startGame()">Start Game →</button>
+    </div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+  <div class="game-sidebar">
+    <div>
+      <div class="sidebar-title">Current Map</div>
+      <div class="sidebar-map-name" id="sidebar-map-name">Path P₆</div>
+    </div>
+    <div id="turn-ind" class="turn-indicator turn-cop">Cop's Turn</div>
+    <div class="phase-label" id="phase-label">Phase: Cop Placement</div>
+    <div class="move-hint" id="move-hint">Click a vertex to place the Cop</div>
+    <div id="thinking-wrap" style="display:none"><div class="thinking-bar"><div class="thinking-fill"></div></div></div>
+    <div>
+      <div class="sidebar-title" style="margin-bottom:.6rem">Stats</div>
+      <div class="stat-row"><span class="stat-label">Round</span><span class="stat-val" id="stat-round">0</span></div>
+      <div class="stat-row"><span class="stat-label">Damaged</span><span class="stat-val damaged-color" id="stat-damaged">0</span></div>
+      <div class="stat-row"><span class="stat-label">Known dmg(G)</span><span class="stat-val" id="stat-known">—</span></div>
+      <div class="stat-row"><span class="stat-label">Cop at</span><span class="stat-val cop-color" id="stat-cop">—</span></div>
+      <div class="stat-row"><span class="stat-label">Robber at</span><span class="stat-val robber-color" id="stat-robber">—</span></div>
+    </div>
+    <div>
+      <div class="sidebar-title" style="margin-bottom:.4rem">Move Log</div>
+      <div class="log-box" id="log-box"></div>
+    </div>
+    <div class="sidebar-btns">
+      <button class="btn btn-secondary" onclick="confirmEndGame()">End Game</button>
+      <button class="btn btn-secondary" onclick="showScreen('setup')">New Setup</button>
+    </div>
+  </div>
+  <div class="game-main">
+    <div id="game-canvas">
+      <svg id="graph-svg" viewBox="0 0 600 500" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div style="margin-top:1rem;font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--text2);text-align:center">
+      🟢 Cop &nbsp;|&nbsp; 🔴 Robber &nbsp;|&nbsp; 🟠 Damaged &nbsp;|&nbsp; ⚪ Safe &nbsp;|&nbsp; Dashed ring = valid move
+    </div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="result-overlay" id="result-overlay">
+  <div class="result-card">
+    <div class="result-icon" id="res-icon">🏆</div>
+    <div class="result-title" id="res-title">Game Over</div>
+    <div class="result-sub" id="res-sub"></div>
+    <div class="result-stats">
+      <div class="rs"><strong id="res-damaged">0</strong><span>Vertices Damaged</span></div>
+      <div class="rs"><strong id="res-known">—</strong><span>Known dmg(G)</span></div>
+      <div class="rs"><strong id="res-rounds">0</strong><span>Rounds Played</span></div>
+    </div>
+    <div class="result-btns">
+      <button class="btn btn-primary" onclick="startGame()">Play Again</button>
+      <button class="btn btn-secondary" onclick="showScreen('setup')">New Setup</button>
+    </div>
+  </div>
+</div>
+
+<!-- INFO -->
+<div class="info-overlay" id="info-overlay">
+  <div class="info-card">
+    <h2>How to Play</h2>
+    <h3>The Damage Number Game</h3>
+    <p>Based on the pursuit-evasion game of Cops &amp; Robbers (Cox &amp; Sanaei 2019). A vertex is <strong style="color:var(--damaged-mid)">damaged</strong> when the Robber leaves it — i.e. moving from u→v damages u. The damage number dmg(G) is the theoretical minimum the Robber can force.</p>
+    <h3>Turn Order</h3>
+    <ul>
+      <li><strong>Round 0:</strong> Cop picks any vertex. Then Robber picks any other vertex.</li>
+      <li><strong>Each round:</strong> Cop moves first (adjacent or pass), then Robber moves (adjacent or pass).</li>
+      <li>Capture = Cop lands on Robber's vertex. Robber cannot land on Cop.</li>
+    </ul>
+    <h3>Goals</h3>
+    <ul>
+      <li><strong style="color:var(--cop-mid)">Cop:</strong> Minimize total damaged vertices. Capture ends the game.</li>
+      <li><strong style="color:var(--robber-mid)">Robber:</strong> Maximize distinct damaged vertices. Avoid capture as long as useful.</li>
+    </ul>
+    <h3>1 Player Mode</h3>
+    <p>The AI uses <strong>minimax search</strong> — it evaluates all future game states and plays the move that leads to the optimal outcome. As Cop it minimizes damage; as Robber it maximizes damage.</p>
+    <h3>Key Theorem (Cox &amp; Sanaei 2019)</h3>
+    <p style="font-family:'JetBrains Mono',monospace;font-size:.75rem;padding:.6rem;background:var(--surface2);border-radius:2px">⌊rad(G)/2⌋ ≤ dmg(G) ≤ n − Δ − 1</p>
+    <button class="btn btn-primary close-btn" onclick="closeInfo()">Got it →</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+// GRAPH DEFINITIONS
+// ══════════════════════════════════════════════════
+const MAPS = {
+  P6:{
+    name:'Path P₆', knownDmg:2,
+    nodes:[{id:0,x:60,y:250,label:'v1'},{id:1,x:160,y:250,label:'v2'},{id:2,x:270,y:250,label:'v3'},{id:3,x:380,y:250,label:'v4'},{id:4,x:490,y:250,label:'v5'},{id:5,x:560,y:250,label:'v6'}],
+    edges:[[0,1],[1,2],[2,3],[3,4],[4,5]]
+  },
+  C6:{
+    name:'Cycle C₆', knownDmg:2,
+    nodes:Array.from({length:6},(_,i)=>({id:i,label:`v${i+1}`,x:300+185*Math.cos(2*Math.PI*i/6-Math.PI/2),y:250+185*Math.sin(2*Math.PI*i/6-Math.PI/2)})),
+    edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,0]]
+  },
+  C8:{
+    name:'Cycle C₈', knownDmg:3,
+    nodes:Array.from({length:8},(_,i)=>({id:i,label:`v${i+1}`,x:300+185*Math.cos(2*Math.PI*i/8-Math.PI/2),y:250+185*Math.sin(2*Math.PI*i/8-Math.PI/2)})),
+    edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,0]]
+  },
+  Petersen:{
+    name:'Petersen Graph', knownDmg:5,
+    nodes:[
+      ...Array.from({length:5},(_,i)=>({id:i,label:`u${i+1}`,x:300+185*Math.cos(2*Math.PI*i/5-Math.PI/2),y:250+185*Math.sin(2*Math.PI*i/5-Math.PI/2)})),
+      ...Array.from({length:5},(_,i)=>({id:i+5,label:`v${i+1}`,x:300+90*Math.cos(2*Math.PI*i/5-Math.PI/2),y:250+90*Math.sin(2*Math.PI*i/5-Math.PI/2)}))
+    ],
+    edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[5,7],[7,9],[9,6],[6,8],[8,5],[0,5],[1,6],[2,7],[3,8],[4,9]]
+  },
+  K33:{
+    name:'Bipartite K₃,₃', knownDmg:1,
+    nodes:[{id:0,x:150,y:140,label:'a1'},{id:1,x:300,y:140,label:'a2'},{id:2,x:450,y:140,label:'a3'},{id:3,x:150,y:360,label:'b1'},{id:4,x:300,y:360,label:'b2'},{id:5,x:450,y:360,label:'b3'}],
+    edges:[[0,3],[0,4],[0,5],[1,3],[1,4],[1,5],[2,3],[2,4],[2,5]]
+  },
+  M8:{
+    name:'Möbius Ladder M₈', knownDmg:4,
+    nodes:Array.from({length:8},(_,i)=>({id:i,label:`u${i+1}`,x:300+185*Math.cos(2*Math.PI*i/8-Math.PI/2),y:250+185*Math.sin(2*Math.PI*i/8-Math.PI/2)})),
+    edges:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,0],[0,4],[1,5],[2,6],[3,7]]
+  },
+  Grid:{
+    name:'Grid 3×3', knownDmg:4,
+    nodes:Array.from({length:9},(_,i)=>({id:i,label:`v${i+1}`,x:160+(i%3)*130,y:140+Math.floor(i/3)*130})),
+    edges:[[0,1],[1,2],[3,4],[4,5],[6,7],[7,8],[0,3],[3,6],[1,4],[4,7],[2,5],[5,8]]
+  },
+  Pappus:{
+    name:'Pappus Graph', knownDmg:'≥10',
+    nodes:[
+      ...Array.from({length:6},(_,i)=>({id:i,label:`v${i+1}`,x:300+195*Math.cos(2*Math.PI*i/6-Math.PI/2),y:250+195*Math.sin(2*Math.PI*i/6-Math.PI/2)})),
+      ...Array.from({length:6},(_,i)=>({id:i+6,label:`v${i+7}`,x:300+110*Math.cos(2*Math.PI*i/6),y:250+110*Math.sin(2*Math.PI*i/6)})),
+      ...Array.from({length:6},(_,i)=>({id:i+12,label:`v${i+13}`,x:300+48*Math.cos(2*Math.PI*i/6-Math.PI/2),y:250+48*Math.sin(2*Math.PI*i/6-Math.PI/2)}))
+    ],
+    edges:[
+      [0,1],[1,2],[2,3],[3,4],[4,5],[5,0],
+      [6,7],[7,8],[8,9],[9,10],[10,11],[11,6],
+      [12,13],[13,14],[14,15],[15,16],[16,17],[17,12],
+      [0,6],[1,9],[2,8],[3,11],[4,10],[5,7],
+      [6,13],[7,14],[8,15],[9,16],[10,17],[11,12]
+    ]
+  }
+};
+
+// ══════════════════════════════════════════════════
+// GAME STATE
+// ══════════════════════════════════════════════════
+const G = {
+  players:1, role:'cop', mapKey:'P6',
+  map:null, adj:null,
+  copPos:-1, robberPos:-1,
+  damagedSet:new Set(),
+  round:0, phase:'cop-place', turnOf:'cop',
+  log:[], captured:false
+};
+
+// ══════════════════════════════════════════════════
+// GRAPH UTILITIES
+// ══════════════════════════════════════════════════
+function buildAdj(map){
+  const n=map.nodes.length, adj=Array.from({length:n},()=>[]);
+  for(const [a,b] of map.edges){adj[a].push(b);adj[b].push(a);}
+  return adj;
+}
+
+// ══════════════════════════════════════════════════
+// ═══════════ AI ENGINE — PAPER-EXACT STRATEGIES ═══
+//
+// COP (minimise damage):
+//   CYCLE — Theorem 2.5 (Cox & Sanaei 2019):
+//     "In the first round C passes. In following rounds he passes
+//      whenever R passes. Otherwise he moves the OPPOSITE direction
+//      of R's move, unless he is adjacent to R (protecting R's
+//      neighbour), in which case he passes."
+//     This guarantees cop protects ⌈(n+1)/2⌉ vertices.
+//     Implementation: store robber's prev position. When robber
+//     moves CW (index increases mod n), cop moves CCW, and vice-versa.
+//
+//   PATH — Corollary 2.8: move along shortest path toward robber.
+//
+//   GENERAL — Theorem 2.9 / 4.2: move to the neighbour c' that
+//     minimises the number of undamaged vertices the robber can
+//     reach strictly before the cop from c'. This is the
+//     "protecting N[v]" / area-blocking strategy from the proofs.
+//
+// ROBBER (maximise damage):
+//   CYCLE — Theorem 2.5 proof: move in the direction that has
+//     MORE undamaged vertices ahead before hitting the cop's "wall".
+//
+//   GENERAL: move to the undamaged neighbour that maximises future
+//     accessible undamaged area (vertices robber reaches ≤ cop).
+//     Avoid immediately capturable positions.
+// ══════════════════════════════════════════════════
+
+// Detect graph topology
+function graphType(adj){
+  if(adj.every(nb=>nb.length===2)) return 'cycle';
+  if(adj.every(nb=>nb.length<=2))  return 'path';
+  return 'general';
+}
+
+// BFS from single source
+function bfs(adj,start){
+  const dist=Array(adj.length).fill(Infinity);
+  dist[start]=0;const q=[start];
+  while(q.length){const u=q.shift();for(const v of adj[u])if(dist[v]===Infinity){dist[v]=dist[u]+1;q.push(v);}}
+  return dist;
+}
+
+// ── COP START ────────────────────────────────────
+// Center vertex (min eccentricity), ties broken by degree.
+// For cycles any vertex works (all symmetric) — returns v0.
+function bestCopStart(adj){
+  const n=adj.length;
+  const ecc=Array.from({length:n},(_,i)=>Math.max(...bfs(adj,i)));
+  const rad=Math.min(...ecc);
+  let best=0,bestDeg=-1;
+  for(let i=0;i<n;i++){
+    if(ecc[i]===rad&&adj[i].length>bestDeg){bestDeg=adj[i].length;best=i;}
+  }
+  return best;
+}
+
+// ── ROBBER START ─────────────────────────────────
+// Start at vertex farthest from cop (maximises opening distance).
+function bestRobberStart(adj,copPos){
+  const dist=bfs(adj,copPos);
+  let best=-1,bestD=-1;
+  for(let i=0;i<adj.length;i++){
+    if(i!==copPos&&dist[i]>bestD){bestD=dist[i];best=i;}
+  }
+  return best;
+}
+
+// ── COP MOVE ─────────────────────────────────────
+function aiCopMove(){
+  const {adj,copPos,robberPos,robberPrevPos,damagedSet}=G;
+  const n=adj.length;
+
+  // Always capture immediately if adjacent
+  if(adj[copPos].includes(robberPos)) return robberPos;
+
+  const type=graphType(adj);
+
+  // ── CYCLE: Theorem 2.5 oscillation strategy ──────
+  if(type==='cycle'){
+    // If robber passed (didn't move), cop also passes.
+    if(robberPos===robberPrevPos) return copPos;
+
+    // Determine direction robber moved on the cycle.
+    // Cycles are labelled 0..n-1 with edges i↔(i+1)%n,
+    // so CW = index increased by 1 (mod n).
+    const movedCW = (robberPos === (robberPrevPos+1)%n);
+
+    // Cop moves OPPOSITE direction.
+    const copMoveCW  = (copPos+1)%n;
+    const copMoveCCW = (copPos-1+n)%n;
+
+    // Safety: never walk into the robber (would be illegal capture by robber)
+    if(movedCW){
+      // Robber went CW → cop goes CCW
+      return (copMoveCCW!==robberPos) ? copMoveCCW : copPos;
+    } else {
+      // Robber went CCW → cop goes CW
+      return (copMoveCW!==robberPos) ? copMoveCW : copPos;
+    }
+  }
+
+  // ── PATH: move along shortest path toward robber ──
+  if(type==='path'){
+    const dist=bfs(adj,robberPos);
+    const opts=[copPos,...adj[copPos]];
+    let best=copPos,bestD=dist[copPos];
+    for(const v of opts){if(dist[v]<bestD){bestD=dist[v];best=v;}}
+    return best;
+  }
+
+  // ── GENERAL: area-blocking (Theorem 2.9) ─────────
+  // For each candidate cop position c', count how many undamaged
+  // vertices the robber can reach strictly before the cop from c'.
+  // Pick c' that minimises this count (= maximises cop's protection).
+  const distRobber=bfs(adj,robberPos);
+  const opts=[copPos,...adj[copPos]];
+  let bestMove=copPos,bestScore=Infinity;
+
+  for(const c of opts){
+    if(c===robberPos) return c; // capture
+    const distC=bfs(adj,c);
+    let score=0;
+    for(let v=0;v<n;v++){
+      if(!damagedSet.has(v)&&v!==c&&distRobber[v]<distC[v]) score++;
+    }
+    if(score<bestScore){bestScore=score;bestMove=c;}
+  }
+  return bestMove;
+}
+
+// ── ROBBER MOVE ──────────────────────────────────
+function aiRobberMove(){
+  const {adj,copPos,robberPos,damagedSet}=G;
+  const n=adj.length;
+  const type=graphType(adj);
+
+  // All moves: stay or go to a neighbour, never walk onto cop
+  const all=[robberPos,...adj[robberPos]];
+  const safe=all.filter(v=>v!==copPos);
+  const candidates=safe.length>0?safe:all; // if truly cornered, pass
+
+  // ── CYCLE: move toward the direction with more undamaged ahead ──
+  if(type==='cycle'){
+    const [nb1,nb2]=adj[robberPos];
+    const s1=nb1!==copPos, s2=nb2!==copPos;
+
+    // Walk in one direction along the cycle, count undamaged vertices
+    // until we hit the cop's position or loop back
+    function countAhead(start){
+      let count=0,cur=start,prev=robberPos;
+      const seen=new Set([robberPos]);
+      while(cur!==copPos&&!seen.has(cur)){
+        seen.add(cur);
+        if(!damagedSet.has(cur)) count++;
+        // Continue in same direction (pick the neighbour that isn't prev)
+        const nxt=adj[cur].find(nb=>nb!==prev);
+        if(nxt===undefined||seen.has(nxt)) break;
+        prev=cur; cur=nxt;
+      }
+      return count;
+    }
+
+    if(!s1&&!s2) return robberPos; // completely trapped — pass
+    if(!s1) return nb2;
+    if(!s2) return nb1;
+    // Go toward richer side
+    const c1=countAhead(nb1), c2=countAhead(nb2);
+    return c1>=c2?nb1:nb2;
+  }
+
+  // ── PATH & GENERAL: maximise future undamaged area ──
+  const distCop=bfs(adj,copPos);
+
+  // Prefer safe moves (cop can't capture us next turn)
+  const trulySafe=candidates.filter(r=>!adj[copPos].includes(r));
+  const pool=trulySafe.length>0?trulySafe:candidates;
+
+  let bestMove=pool[0],bestScore=-Infinity;
+  for(const r of pool){
+    const distR=bfs(adj,r);
+    let score=0;
+    for(let v=0;v<n;v++){
+      // Count undamaged vertices robber can reach no later than cop
+      if(!damagedSet.has(v)&&v!==copPos&&distR[v]<=distCop[v]) score++;
+    }
+    // Bonus for moving to an undamaged vertex (actual new damage)
+    if(!damagedSet.has(r)&&r!==robberPos) score+=3;
+    if(score>bestScore){bestScore=score;bestMove=r;}
+  }
+  return bestMove;
+}
+
+// ── Entry points ─────────────────────────────────
+function aiCopStart()   { return bestCopStart(G.adj); }
+function aiRobberStart(){ return bestRobberStart(G.adj,G.copPos); }
+function dmgMask(){let m=0;for(const v of G.damagedSet)m|=(1<<v);return m;}
+
+// ══════════════════════════════════════════════════
+// SCREEN / SETUP HELPERS
+// ══════════════════════════════════════════════════
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  if(id==='title') closeResult();
+}
+function showInfo(){document.getElementById('info-overlay').classList.add('show')}
+function closeInfo(){document.getElementById('info-overlay').classList.remove('show')}
+function closeResult(){document.getElementById('result-overlay').classList.remove('show')}
+
+function selectOption(el){
+  const g=el.dataset.group;
+  document.querySelectorAll(`[data-group="${g}"]`).forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  updateSetupInfo();
+}
+function getSelected(g){const el=document.querySelector(`[data-group="${g}"].selected`);return el?el.dataset.val:null;}
+function updateSetupInfo(){
+  const mv=getSelected('map'),pv=getSelected('players');
+  const rs=document.getElementById('role-section');
+  if(pv==='2'){rs.style.opacity='.4';rs.style.pointerEvents='none';}
+  else{rs.style.opacity='1';rs.style.pointerEvents='auto';}
+  const m=MAPS[mv];
+  if(m) document.getElementById('setup-info-text').textContent=`Map: ${m.name} — Known dmg(G) = ${m.knownDmg}`;
+}
+
+// ══════════════════════════════════════════════════
+// START GAME
+// ══════════════════════════════════════════════════
+function startGame(){
+  closeResult();
+  G.players=parseInt(getSelected('players'));
+  G.role=getSelected('role')||'cop';
+  G.mapKey=getSelected('map')||'P6';
+  G.map=MAPS[G.mapKey];
+  G.adj=buildAdj(G.map);
+  G.copPos=-1;G.robberPos=-1;G.robberPrevPos=-1;
+  G.damagedSet=new Set();
+  G.round=0;G.phase='cop-place';G.turnOf='cop';
+  G.log=[];G.captured=false;
+  document.getElementById('log-box').innerHTML='';
+  showScreen('game');
+  document.getElementById('sidebar-map-name').textContent=G.map.name;
+  document.getElementById('stat-known').textContent=G.map.knownDmg;
+  renderGraph();updateUI();
+  // 1P as robber: AI cop places first
+  if(G.players===1&&G.role==='robber'){
+    setThinking(true);
+    setTimeout(()=>{setThinking(false);placeOrMove('cop',aiCopStart());},400);
+  }
+}
+
+// ══════════════════════════════════════════════════
+// CLICK HANDLER
+// ══════════════════════════════════════════════════
+function onNodeClick(id){
+  if(G.phase==='done') return;
+  const {players,role,phase,copPos,robberPos,adj}=G;
+  const humanCop=(players===2)||(players===1&&role==='cop');
+  const humanRobber=(players===2)||(players===1&&role==='robber');
+
+  if(phase==='cop-place'&&humanCop){placeOrMove('cop',id);return;}
+  if(phase==='robber-place'&&humanRobber){
+    if(id===copPos){addLog('system','Cannot start on the Cop!');return;}
+    placeOrMove('robber',id);return;
+  }
+  if(phase==='cop-move'&&humanCop){
+    if(id!==copPos&&!adj[copPos].includes(id)){addLog('system','Not a valid move — must be adjacent or pass.');return;}
+    placeOrMove('cop',id);return;
+  }
+  if(phase==='robber-move'&&humanRobber){
+    if(id!==robberPos&&!adj[robberPos].includes(id)){addLog('system','Not a valid move — must be adjacent or pass.');return;}
+    placeOrMove('robber',id);return;
+  }
+}
+
+// ══════════════════════════════════════════════════
+// CORE GAME LOGIC
+// ══════════════════════════════════════════════════
+function placeOrMove(who, vertex){
+  const prev=who==='cop'?G.copPos:G.robberPos;
+  if(who==='cop'){
+    G.copPos=vertex;
+    addLog('cop',`Cop → ${G.map.nodes[vertex].label}`);
+  } else {
+    // Track previous position for direction-based cop strategy (cycles)
+    G.robberPrevPos = (G.robberPos === -1) ? vertex : G.robberPos;
+    // Damage occurs when robber LEAVES previous vertex
+    if(prev!==-1&&prev!==vertex){
+      G.damagedSet.add(prev);
+      addLog('damaged',`${G.map.nodes[prev].label} damaged`);
+    }
+    G.robberPos=vertex;
+    addLog('robber',`Robber → ${G.map.nodes[vertex].label}`);
+  }
+  renderGraph();updateStats();
+
+  // Check capture: cop occupies robber's vertex
+  if(G.copPos!==-1&&G.robberPos!==-1&&G.copPos===G.robberPos){
+    // When captured, robber's current vertex is also damaged
+    G.damagedSet.add(G.robberPos);
+    addLog('damaged',`${G.map.nodes[G.robberPos].label} damaged (captured here)`);
+    addLog('cop','CAPTURED! Game over.');
+    G.captured=true;G.phase='done';
+    renderGraph();updateStats();
+    setTimeout(showResult,800);return;
+  }
+
+  advancePhase(who);
+}
+
+function advancePhase(justMoved){
+  const {players,role,phase}=G;
+  const aiPlays=(who)=>(players===1&&role!==who);
+
+  if(phase==='cop-place'){
+    G.phase='robber-place';G.turnOf='robber';updateUI();
+    if(aiPlays('robber')){
+      setThinking(true);
+      setTimeout(()=>{setThinking(false);placeOrMove('robber',aiRobberStart());},600);
+    }return;
+  }
+  if(phase==='robber-place'){
+    G.round=1;G.phase='cop-move';G.turnOf='cop';updateUI();
+    if(aiPlays('cop')){
+      setThinking(true);
+      setTimeout(()=>{setThinking(false);placeOrMove('cop',aiCopMove());},600);
+    }return;
+  }
+  if(phase==='cop-move'){
+    G.phase='robber-move';G.turnOf='robber';updateUI();
+    if(aiPlays('robber')){
+      setThinking(true);
+      setTimeout(()=>{setThinking(false);placeOrMove('robber',aiRobberMove());},600);
+    }return;
+  }
+  if(phase==='robber-move'){
+    G.round++;
+    // Check if robber is completely stuck (all neighbours are cop or captured next move)
+    const safe=G.adj[G.robberPos].filter(v=>v!==G.copPos);
+    if(safe.length===0&&G.robberPos!==G.copPos){
+      // Robber stuck — must pass indefinitely, game over
+      G.phase='done';setTimeout(showResult,400);return;
+    }
+    if(G.round>80){G.phase='done';setTimeout(showResult,400);return;}
+    G.phase='cop-move';G.turnOf='cop';updateUI();
+    if(aiPlays('cop')){
+      setThinking(true);
+      setTimeout(()=>{setThinking(false);placeOrMove('cop',aiCopMove());},600);
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════
+// UI
+// ══════════════════════════════════════════════════
+function setThinking(on){
+  document.getElementById('thinking-wrap').style.display=on?'block':'none';
+  document.getElementById('move-hint').style.display=on?'none':'block';
+}
+
+function updateUI(){
+  const {phase,turnOf,players,role}=G;
+  const ti=document.getElementById('turn-ind');
+  const pl=document.getElementById('phase-label');
+  const mh=document.getElementById('move-hint');
+  const phases={'cop-place':'Phase: Cop Placement','robber-place':'Phase: Robber Placement','cop-move':'Phase: Cop Move','robber-move':'Phase: Robber Move','done':'Game Over'};
+  pl.textContent=phases[phase]||phase;
+  if(turnOf==='cop'){ti.className='turn-indicator turn-cop';ti.textContent='Cop\'s Turn';}
+  else{ti.className='turn-indicator turn-robber';ti.textContent='Robber\'s Turn';}
+  const isHuman=players===2||((turnOf==='cop'&&role==='cop')||(turnOf==='robber'&&role==='robber'));
+  mh.style.display='block';
+  if(!isHuman){mh.textContent='AI is calculating…';mh.className='move-hint pulsing';}
+  else{
+    mh.className='move-hint';
+    const hints={'cop-place':'Click any vertex to place the Cop','robber-place':'Click any vertex (not Cop\'s) to place Robber','cop-move':'Click adjacent vertex to move, or click your vertex to pass','robber-move':'Click adjacent vertex to move (damages current), or click your vertex to pass','done':''};
+    mh.textContent=hints[phase]||'';
+  }
+}
+
+function updateStats(){
+  document.getElementById('stat-round').textContent=G.round;
+  document.getElementById('stat-damaged').textContent=G.damagedSet.size;
+  document.getElementById('stat-cop').textContent=G.copPos>=0?G.map.nodes[G.copPos].label:'—';
+  document.getElementById('stat-robber').textContent=G.robberPos>=0?G.map.nodes[G.robberPos].label:'—';
+}
+
+function addLog(type,msg){
+  G.log.push({type,msg});
+  const box=document.getElementById('log-box');
+  const el=document.createElement('div');
+  el.className=`log-entry-${type}`;
+  el.textContent=`R${G.round}: ${msg}`;
+  box.appendChild(el);box.scrollTop=box.scrollHeight;
+}
+
+// ══════════════════════════════════════════════════
+// SVG RENDERER
+// ══════════════════════════════════════════════════
+function renderGraph(){
+  const svg=document.getElementById('graph-svg');
+  svg.innerHTML='';
+  const {map,copPos,robberPos,damagedSet,adj,phase}=G;
+
+  // Valid moves highlight
+  let validMoves=new Set();
+  const isHumanTurn=G.players===2||
+    (G.phase==='cop-place'&&G.role==='cop')||
+    (G.phase==='robber-place'&&G.role==='robber')||
+    (G.phase==='cop-move'&&G.role==='cop')||
+    (G.phase==='robber-move'&&G.role==='robber');
+
+  if(isHumanTurn){
+    if(phase==='cop-place') map.nodes.forEach(n=>validMoves.add(n.id));
+    else if(phase==='robber-place'){map.nodes.forEach(n=>validMoves.add(n.id));validMoves.delete(copPos);}
+    else if(phase==='cop-move'&&copPos>=0) validMoves=new Set([copPos,...adj[copPos]]);
+    else if(phase==='robber-move'&&robberPos>=0) validMoves=new Set([robberPos,...adj[robberPos]]);
+  }
+
+  // Filter: don't highlight cop vertex for robber valid moves
+  if(phase==='robber-move') validMoves.delete(copPos);
+
+  // Defs
+  const defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
+  defs.innerHTML=`
+    <filter id="gcop"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="grob"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  `;
+  svg.appendChild(defs);
+
+  // Edges
+  for(const [a,b] of map.edges){
+    const na=map.nodes[a],nb=map.nodes[b];
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',na.x);line.setAttribute('y1',na.y);
+    line.setAttribute('x2',nb.x);line.setAttribute('y2',nb.y);
+    line.setAttribute('stroke','#333330');line.setAttribute('stroke-width','2.5');line.setAttribute('stroke-linecap','round');
+    svg.appendChild(line);
+  }
+
+  // Nodes
+  for(const node of map.nodes){
+    const {id,x,y,label}=node;
+    const isDmg=damagedSet.has(id),isCop=id===copPos,isRobber=id===robberPos;
+    const isValid=validMoves.has(id)&&phase!=='done';
+
+    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.style.cursor=isValid?'pointer':'default';
+    g.onclick=()=>onNodeClick(id);
+
+    // Valid move ring
+    if(isValid){
+      const ring=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      ring.setAttribute('cx',x);ring.setAttribute('cy',y);ring.setAttribute('r',27);
+      ring.setAttribute('fill','none');
+      ring.setAttribute('stroke',phase==='cop-move'||phase==='cop-place'?'#1D9E75':'#D85A30');
+      ring.setAttribute('stroke-width','1.5');ring.setAttribute('stroke-dasharray','5 3');ring.setAttribute('opacity','0.7');
+      g.appendChild(ring);
+    }
+
+    // Main circle
+    const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx',x);circle.setAttribute('cy',y);circle.setAttribute('r',20);
+    let fill='#252522',stroke='#3d3d38',sw='1.5',filt=null;
+    if(isCop&&isRobber){fill='#1a0606';stroke='#E24B4A';sw='3';filt='url(#grob)';}
+    else if(isCop){fill='#091f15';stroke='#1D9E75';sw='2.5';filt='url(#gcop)';}
+    else if(isRobber){fill='#1f0c06';stroke='#D85A30';sw='2.5';filt='url(#grob)';}
+    else if(isDmg){fill='#2a1e06';stroke='#EF9F27';sw='2';}
+    circle.setAttribute('fill',fill);circle.setAttribute('stroke',stroke);circle.setAttribute('stroke-width',sw);
+    if(filt) circle.setAttribute('filter',filt);
+    g.appendChild(circle);
+
+    // Icon
+    const makeText=(content,size,color)=>{
+      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x',x);t.setAttribute('y',y+2);
+      t.setAttribute('text-anchor','middle');t.setAttribute('dominant-baseline','middle');
+      t.setAttribute('font-size',size);if(color)t.setAttribute('fill',color);
+      t.textContent=content;return t;
+    };
+    if(isCop&&isRobber) g.appendChild(makeText('⚠',14));
+    else if(isCop) g.appendChild(makeText('🚔',13));
+    else if(isRobber) g.appendChild(makeText('🦹',13));
+    else if(isDmg) g.appendChild(makeText('✕',12,'#EF9F27'));
+
+    // Label
+    const lbl=makeText(label,10,null);
+    lbl.setAttribute('y',y+33);
+    lbl.setAttribute('font-family','JetBrains Mono, monospace');
+    lbl.setAttribute('font-size','10');
+    lbl.setAttribute('fill',isCop?'#1D9E75':isRobber?'#D85A30':isDmg?'#BA7517':'#555550');
+    g.appendChild(lbl);
+
+    svg.appendChild(g);
+  }
+}
+
+// ══════════════════════════════════════════════════
+// RESULT
+// ══════════════════════════════════════════════════
+function showResult(){
+  const {damagedSet,captured,round,map,role,players}=G;
+  const dmg=damagedSet.size,known=map.knownDmg;
+  let title,sub,icon;
+  const knownNum=typeof known==='number'?known:null;
+
+  if(players===2){
+    icon=captured?'🚔':'🦹';
+    title=captured?'Cop Wins!':'Robber Wins!';
+    sub=captured?`Robber captured. ${dmg} vertices damaged.`:`Robber avoided capture. ${dmg} vertices damaged!`;
+  } else if(role==='cop'){
+    const good=knownNum!==null&&dmg<=knownNum;
+    icon=good?'🏆':'📉';
+    title=good?'Optimal Play!':'Robber Got Through';
+    sub=good?`You held damage to ${dmg} — matching the theoretical dmg(G) = ${known}!`
+             :`AI robber damaged ${dmg} vertices. Theoretical minimum: ${known}.`;
+  } else {
+    const good=knownNum!==null&&dmg>=knownNum;
+    icon=good?'🏆':'🚔';
+    title=good?'Maximum Damage!':'Cop Contained You';
+    sub=good?`You achieved dmg(G) = ${known} — theoretical maximum damage!`
+             :`You damaged ${dmg} vertices. AI cop held you to below ${known}.`;
+  }
+
+  document.getElementById('res-icon').textContent=icon;
+  document.getElementById('res-title').textContent=title;
+  document.getElementById('res-sub').textContent=sub;
+  document.getElementById('res-damaged').textContent=dmg;
+  document.getElementById('res-known').textContent=known;
+  document.getElementById('res-rounds').textContent=round;
+  document.getElementById('result-overlay').classList.add('show');
+}
+
+function confirmEndGame(){if(confirm('End the current game?')){G.phase='done';showResult();}}
+
+// Init
+updateSetupInfo();
+</script>
+</body>
+</html>
